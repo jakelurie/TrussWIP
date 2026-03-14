@@ -98,17 +98,28 @@ export default function BillingSettings() {
     setDepositing(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("You need to be signed in to add funds");
+      }
+
       const res = await fetch("/api/deposit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: depositAmount, userId }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ amount: depositAmount }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Deposit failed");
+      }
       if (data.url) {
         window.location.href = data.url;
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      alert(err.message || "Failed to start deposit");
     }
     setDepositing(false);
   };

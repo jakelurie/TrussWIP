@@ -168,13 +168,13 @@ export default function EditProfile() {
       .map((item) => item.trim())
       .filter(Boolean);
 
-    const { error: profileError } = await supabase.from("profiles").update({
+    const { data: profileRow, error: profileError } = await supabase.from("profiles").update({
       display_name: displayName,
       avatar_url: avatarUrl || null,
       city: cities[0] || "",
       cities: cities,
       phone: phone || null,
-    }).eq("id", userId);
+    }).eq("id", userId).select("id").maybeSingle();
 
     if (profileError) {
       setSaveError(profileError.message);
@@ -182,7 +182,14 @@ export default function EditProfile() {
       return;
     }
 
-    const { error: techError } = await supabase.from("tech_profiles").update({
+    if (!profileRow) {
+      setSaveError("Profile record was not found. Please refresh and try again.");
+      setSaving(false);
+      return;
+    }
+
+    const { error: techError } = await supabase.from("tech_profiles").upsert({
+      user_id: userId,
       primary_skill: primarySkill,
       skills: skills,
       specializations: specializations,
@@ -200,12 +207,16 @@ export default function EditProfile() {
       cancellation_policy: cancellationPolicy,
       career_highlights: careerHighlights.filter(h => h.title.trim()),
       certifications: certifications,
-    }).eq("user_id", userId);
+    }, { onConflict: "user_id" });
 
     if (techError) {
       setSaveError(techError.message);
       setSaving(false);
       return;
+    }
+
+    if (!techProfileId) {
+      setTechProfileId(userId);
     }
 
     setSaving(false);

@@ -83,10 +83,18 @@ function Payouts() {
 
     // Check Connect status
     try {
-      const statusRes = await fetch(
-        `/api/stripe-connect/status?userId=${uid}`
-      );
+      const {
+        data: { session: activeSession },
+      } = await supabase.auth.getSession();
+      const statusRes = await fetch("/api/stripe-connect/status", {
+        headers: {
+          Authorization: `Bearer ${activeSession?.access_token || ""}`,
+        },
+      });
       const statusData = await statusRes.json();
+      if (!statusRes.ok) {
+        throw new Error(statusData.error || "Failed to load payout status");
+      }
       setConnectStatus(statusData);
     } catch {
       setConnectStatus({ onboarded: false, charges_enabled: false, payouts_enabled: false });

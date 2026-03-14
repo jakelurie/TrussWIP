@@ -88,16 +88,24 @@ export default function ProjectFilesTab({ projectId, projectName, onFileCountCha
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
     });
-    return res.json();
+    const data = await res.json();
+    return { ok: res.ok, data };
   };
 
   const loadFiles = useCallback(async () => {
-    const data = await apiCall({ action: "list", projectId });
-    const f = data.files || [];
+    const result = await apiCall({ action: "list", projectId });
+    if (!result.ok) {
+      setError(result.data.error || "Failed to load files");
+      setFiles([]);
+      onFileCountChange(0);
+      setLoading(false);
+      return;
+    }
+    const f = result.data.files || [];
     setFiles(f);
     onFileCountChange(f.length);
     setLoading(false);
-  }, [projectId]);
+  }, [onFileCountChange, projectId]);
 
   useEffect(() => { loadFiles(); }, [loadFiles]);
 
@@ -168,8 +176,8 @@ export default function ProjectFilesTab({ projectId, projectName, onFileCountCha
         projectId,
         files: successFiles,
       });
-      if (result.error) {
-        setError(result.error);
+      if (!result.ok) {
+        setError(result.data.error || "Failed to register uploaded files");
       } else {
         showToast(`${successFiles.length} file${successFiles.length !== 1 ? "s" : ""} uploaded`);
       }
@@ -182,16 +190,18 @@ export default function ProjectFilesTab({ projectId, projectName, onFileCountCha
 
   // ── Download ──────────────────────────────────────────
   const handleDownload = async (fileId: string) => {
-    const data = await apiCall({ action: "download", fileId });
-    if (data.url) {
+    const result = await apiCall({ action: "download", fileId });
+    if (result.ok && result.data.url) {
       const a = document.createElement("a");
-      a.href = data.url;
-      a.download = data.fileName;
+      a.href = result.data.url;
+      a.download = result.data.fileName;
       a.target = "_blank";
       a.rel = "noopener noreferrer";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+    } else {
+      setError(result.data.error || "Failed to download file");
     }
   };
 
@@ -199,11 +209,11 @@ export default function ProjectFilesTab({ projectId, projectName, onFileCountCha
   const handleDelete = async (fileId: string) => {
     setConfirmDeleteId(null);
     const result = await apiCall({ action: "delete", fileId });
-    if (result.success) {
+    if (result.ok && result.data.success) {
       showToast("File deleted");
       loadFiles();
     } else {
-      setError(result.error || "Failed to delete");
+      setError(result.data.error || "Failed to delete");
     }
   };
 
@@ -216,7 +226,11 @@ export default function ProjectFilesTab({ projectId, projectName, onFileCountCha
 
   const saveEdit = async () => {
     if (!editingId) return;
-    await apiCall({ action: "update", fileId: editingId, category: editCategory, notes: editNotes });
+    const result = await apiCall({ action: "update", fileId: editingId, category: editCategory, notes: editNotes });
+    if (!result.ok) {
+      setError(result.data.error || "Failed to update file");
+      return;
+    }
     setEditingId(null);
     showToast("File updated");
     loadFiles();

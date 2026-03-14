@@ -26,6 +26,25 @@ async function getAuthUser(req: NextRequest): Promise<{ id: string; email: strin
   return user ? { id: user.id, email: user.email || "" } : null;
 }
 
+async function attachAuthorTechProfiles<T extends { author_id: string }>(items: T[]) {
+  if (items.length === 0) return [];
+
+  const authorIds = [...new Set(items.map((item) => item.author_id).filter(Boolean))];
+  const { data: techProfiles } = await supabaseAdmin
+    .from("tech_profiles")
+    .select("user_id, level, primary_skill, skills")
+    .in("user_id", authorIds);
+
+  const techProfileByUserId = new Map(
+    (techProfiles || []).map((profile) => [profile.user_id, profile])
+  );
+
+  return items.map((item) => ({
+    ...item,
+    tech_profiles: techProfileByUserId.get(item.author_id) || null,
+  }));
+}
+
 // ─── GET ─────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -45,14 +64,15 @@ export async function GET(req: NextRequest) {
       .select(`
         *,
         forum_categories(slug, name, icon, department_id),
-        profiles!forum_posts_author_id_fkey(display_name, avatar_url, city, is_verified),
-        tech_profiles(level, primary_skill, skills)
+        profiles!forum_posts_author_id_fkey(display_name, avatar_url, city, is_verified)
       `)
       .eq("id", postId)
       .eq("is_hidden", false)
       .single();
 
     if (!post) return err("Post not found", 404);
+
+    const [postWithTech] = await attachAuthorTechProfiles([post]);
 
     // Increment view count (fire-and-forget)
     supabaseAdmin
@@ -65,12 +85,13 @@ export async function GET(req: NextRequest) {
       .from("forum_comments")
       .select(`
         *, parent_comment_id,
-        profiles!forum_comments_author_id_fkey(display_name, avatar_url, city, is_verified),
-        tech_profiles(level, primary_skill, skills)
+        profiles!forum_comments_author_id_fkey(display_name, avatar_url, city, is_verified)
       `)
       .eq("post_id", postId)
       .eq("is_hidden", false)
       .order("created_at", { ascending: true });
+
+    const commentsWithTech = await attachAuthorTechProfiles(comments || []);
 
     // Get helpful marks for this post + its comments (for the requesting user)
     const authUser = await getAuthUser(req);
@@ -80,11 +101,11 @@ export async function GET(req: NextRequest) {
         .from("forum_helpful_marks")
         .select("post_id, comment_id")
         .eq("user_id", authUser.id)
-        .or(`post_id.eq.${postId},comment_id.in.(${(comments || []).map(c => c.id).join(",")})`);
+        .or(`post_id.eq.${postId},comment_id.in.(${(commentsWithTech || []).map(c => c.id).join(",")})`);
       userMarks = (marks || []).map(m => m.post_id || m.comment_id);
     }
 
-    return NextResponse.json({ post, comments: comments || [], userMarks });
+    return NextResponse.json({ post: postWithTech, comments: commentsWithTech || [], userMarks });
   }
 
   // Post list
@@ -95,8 +116,7 @@ export async function GET(req: NextRequest) {
       id, title, slug, category_id, author_id, helpful_count, comment_count, view_count,
       is_pinned, created_at, last_comment_at,
       forum_categories(slug, name, icon),
-      profiles!forum_posts_author_id_fkey(display_name, avatar_url),
-      tech_profiles(level, primary_skill)
+      profiles!forum_posts_author_id_fkey(display_name, avatar_url)
     `)
     .eq("is_hidden", false);
 
@@ -131,7 +151,9 @@ export async function GET(req: NextRequest) {
   const { data: posts, error: postsErr } = await query;
   if (postsErr) return err(postsErr.message, 500);
 
-  return NextResponse.json({ posts: posts || [] });
+  const postsWithTech = await attachAuthorTechProfiles(posts || []);
+
+  return NextResponse.json({ posts: postsWithTech || [] });
 }
 
 // ─── POST ────────────────────────────────────────────────────

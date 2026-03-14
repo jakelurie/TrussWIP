@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -9,10 +11,35 @@ function getStripe() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { amount, userId } = await req.json();
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const supabaseAuth = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { amount } = await req.json();
 
     if (!amount || amount < 100) {
       return NextResponse.json({ error: "Minimum deposit is $100" }, { status: 400 });
+    }
+
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("user_type")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.user_type !== "producer") {
+      return NextResponse.json({ error: "Only producers can add funds" }, { status: 403 });
     }
 
     const session = await getStripe().checkout.sessions.create({
@@ -31,11 +58,11 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "payment",
-      success_url: `${req.nextUrl.origin}/billing?deposit=success&amount=${amount}&userId=${userId}`,
+      success_url: `${req.nextUrl.origin}/billing?deposit=success&amount=${amount}`,
       cancel_url: `${req.nextUrl.origin}/billing?deposit=cancelled`,
       metadata: {
         type: "deposit",
-        userId,
+        userId: user.id,
         amount: String(amount),
       },
     });

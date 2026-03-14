@@ -22,14 +22,20 @@ export default function ReviewModal({ bookingId, techId, techName, projectName, 
   const [communication, setCommunication] = useState(5);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async () => {
     setSubmitting(true);
+    setError("");
 
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setSubmitting(false); return; }
+    if (!session) {
+      setError("You need to be signed in to leave a review.");
+      setSubmitting(false);
+      return;
+    }
 
-    await fetch("/api/bookings", {
+    const res = await fetch("/api/bookings", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -46,6 +52,13 @@ export default function ReviewModal({ bookingId, techId, techName, projectName, 
         text,
       }),
     });
+
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || "Failed to submit review");
+      setSubmitting(false);
+      return;
+    }
 
     setSubmitting(false);
     onSuccess();
@@ -96,6 +109,12 @@ export default function ReviewModal({ bookingId, techId, techName, projectName, 
             rows={4}
             className="w-full px-4 py-3 bg-blackout/50 border border-ink/[0.06] rounded-lg text-house-lights text-sm outline-none focus:border-signal-orange/20 transition-all resize-vertical leading-relaxed" />
         </div>
+
+        {error && (
+          <div className="mb-4 px-4 py-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
+            {error}
+          </div>
+        )}
 
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-3 text-aluminum font-heading text-sm tracking-wider uppercase hover:text-house-lights transition-colors">

@@ -85,7 +85,7 @@ export async function PATCH(req: NextRequest) {
       }
       if (Object.keys(updates).length === 0) return err("Nothing to update");
       const { error } = await supabaseAdmin
-        .from("tech_profiles").update(updates).eq("user_id", user.id);
+        .from("tech_profiles").upsert({ user_id: user.id, ...updates }, { onConflict: "user_id" });
       if (error) return err(error.message, 500);
       return NextResponse.json({ success: true });
     }

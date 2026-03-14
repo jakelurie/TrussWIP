@@ -59,15 +59,23 @@ export default function Bookings() {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({ action, bookingId, ...extra }),
     });
-    return res.json();
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Booking action failed");
+    }
+    return data;
   };
 
   const handleComplete = async (booking: any) => {
-    await bookingAction("complete", booking.id);
-    showToast("Gig marked complete! Leave a review?");
-    loadData();
-    setReviewBooking(booking);
-    setShowReview(true);
+    try {
+      await bookingAction("complete", booking.id);
+      showToast("Gig marked complete! Leave a review?");
+      loadData();
+      setReviewBooking(booking);
+      setShowReview(true);
+    } catch (error: any) {
+      showToast(error.message || "Failed to complete booking");
+    }
   };
 
   const handleInvoiceConfirm = async (booking: any) => {
@@ -150,11 +158,15 @@ export default function Bookings() {
     const action = actionMap[newStatus];
     if (!action) return;
 
-    await bookingAction(action, bookingId);
-    showToast(`Booking ${newStatus}`);
-    loadData();
-    if (selected?.id === bookingId) {
-      setSelected({ ...selected, status: newStatus });
+    try {
+      await bookingAction(action, bookingId);
+      showToast(`Booking ${newStatus}`);
+      loadData();
+      if (selected?.id === bookingId) {
+        setSelected({ ...selected, status: newStatus });
+      }
+    } catch (error: any) {
+      showToast(error.message || "Failed to update booking");
     }
   };
 
@@ -175,21 +187,33 @@ export default function Bookings() {
   };
 
   const handleCheckIn = async (booking: any) => {
-    await bookingAction("check_in", booking.id);
-    showToast("Clocked in!");
-    loadData();
+    try {
+      await bookingAction("check_in", booking.id);
+      showToast("Clocked in!");
+      loadData();
+    } catch (error: any) {
+      showToast(error.message || "Failed to clock in");
+    }
   };
 
   const handleCheckOut = async (booking: any) => {
-    const result = await bookingAction("check_out", booking.id);
-    showToast(`Clocked out! ${result.actualHours || ""}hr logged`);
-    loadData();
+    try {
+      const result = await bookingAction("check_out", booking.id);
+      showToast(`Clocked out! ${result.actualHours || ""}hr logged`);
+      loadData();
+    } catch (error: any) {
+      showToast(error.message || "Failed to clock out");
+    }
   };
 
   const handleCancelBooking = async (booking: any) => {
-    await bookingAction("cancel", booking.id);
-    showToast("Booking cancelled");
-    loadData();
+    try {
+      await bookingAction("cancel", booking.id);
+      showToast("Booking cancelled");
+      loadData();
+    } catch (error: any) {
+      showToast(error.message || "Failed to cancel booking");
+    }
   };
 
   // ── Project Files for booking detail ──

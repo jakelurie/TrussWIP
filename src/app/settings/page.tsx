@@ -114,22 +114,29 @@ export default function SettingsPage() {
   }, [router]);
 
   const doAction = async (action: string, value: any, label: string) => {
-    if (!session) return;
+    if (!session) return { ok: false, error: "Not signed in" };
     setSaving(label);
     setError(null);
-    const res = await fetch("/api/settings", {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ action, value }),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action, value }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Something went wrong");
+        return { ok: false, error: data.error || "Something went wrong", data };
+      }
       setSaved(label);
       setTimeout(() => setSaved(null), 2000);
-    } else {
-      const data = await res.json();
-      setError(data.error || "Something went wrong");
+      return { ok: true, data };
+    } catch {
+      setError("Something went wrong");
+      return { ok: false, error: "Something went wrong" };
+    } finally {
+      setSaving(null);
     }
-    setSaving(null);
   };
 
   const handleSaveAccount = () => {
@@ -140,35 +147,47 @@ export default function SettingsPage() {
 
   const handleChangeEmail = () => {
     if (!newEmail) return;
-    doAction("update_email", newEmail, "email");
-    setShowEmailForm(false);
+    doAction("update_email", newEmail, "email").then((result) => {
+      if (result?.ok) {
+        setShowEmailForm(false);
+      }
+    });
   };
 
   const handleChangePassword = () => {
     if (newPassword.length < 8) { setError("Password must be at least 8 characters"); return; }
     if (newPassword !== confirmPassword) { setError("Passwords do not match"); return; }
-    doAction("update_password", newPassword, "password");
-    setShowPasswordForm(false);
-    setNewPassword("");
-    setConfirmPassword("");
+    doAction("update_password", newPassword, "password").then((result) => {
+      if (result?.ok) {
+        setShowPasswordForm(false);
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    });
   };
 
   const handleNotifToggle = (key: string) => {
     const updated = { ...notifPrefs, [key]: { email: !(notifPrefs[key]?.email ?? true) } };
     setNotifPrefs(updated);
-    doAction("update_notifications", updated, "notifications");
+    doAction("update_notifications", updated, "notifications").then((result) => {
+      if (!result?.ok) setNotifPrefs(notifPrefs);
+    });
   };
 
   const handlePrivacyToggle = (key: string) => {
     const updated = { ...privacy, [key]: !privacy[key] };
     setPrivacy(updated);
-    doAction("update_privacy", updated, "privacy");
+    doAction("update_privacy", updated, "privacy").then((result) => {
+      if (!result?.ok) setPrivacy(privacy);
+    });
   };
 
   const handleAvailabilityToggle = () => {
     const next = !available;
     setAvailable(next);
-    doAction("update_tech", { available: next }, "availability");
+    doAction("update_tech", { available: next }, "availability").then((result) => {
+      if (!result?.ok) setAvailable(!next);
+    });
   };
 
   const handleSaveTech = () => {
@@ -200,9 +219,11 @@ export default function SettingsPage() {
 
   const handleDeleteAccount = async () => {
     if (deleteConfirm !== "DELETE") return;
-    await doAction("delete_account", null, "delete");
-    await supabase.auth.signOut();
-    window.location.href = "/";
+    const result = await doAction("delete_account", null, "delete");
+    if (result?.ok) {
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    }
   };
 
   const copyReferral = () => {

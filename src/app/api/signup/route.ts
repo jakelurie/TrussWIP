@@ -11,11 +11,29 @@ function jsonError(error: string, status: number, debug?: string) {
   return NextResponse.json(body, { status });
 }
 
+function isConfigured(value: string | undefined) {
+  return !!value && !value.startsWith("replace-with-your-");
+}
+
 export async function POST(req: NextRequest) {
   const limited = limiter(req);
   if (limited) return limited;
 
   try {
+    if (!isConfigured(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) {
+      return jsonError(
+        "Local signup is not configured yet. Add your real NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local.",
+        503
+      );
+    }
+
+    if (!isConfigured(process.env.SUPABASE_SERVICE_ROLE_KEY)) {
+      return jsonError(
+        "Local signup is not configured yet. Add your real SUPABASE_SERVICE_ROLE_KEY to .env.local.",
+        503
+      );
+    }
+
     const { userId, userType, displayName, email, phone, companyName, billingType, refCode } = await req.json();
 
     if (!userId || !userType || !displayName || !email) {
