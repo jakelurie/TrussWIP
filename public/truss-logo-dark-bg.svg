@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 250" width="800" height="250">
+  <rect width="800" height="250" fill="#0A0A0A"/>
+  <text x="400" y="148" font-family="Oswald, 'Arial Black', sans-serif" font-weight="700" font-size="120" fill="#E8E6E3" text-anchor="middle" letter-spacing="12">TRUSS</text>
+  <line x1="175" y1="170" x2="625" y2="170" stroke="#FF4D00" stroke-width="4"/>
+  <line x1="175" y1="180" x2="625" y2="180" stroke="#FF4D00" stroke-width="1"/>
+</svg>

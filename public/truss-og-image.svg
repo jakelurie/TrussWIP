@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#0A0A0A"/>
+  
+  <!-- TRUSS wordmark -->
+  <text x="600" y="290" font-family="Oswald, 'Arial Black', sans-serif" font-weight="700" font-size="140" fill="#E8E6E3" text-anchor="middle" letter-spacing="14">TRUSS</text>
+  <line x1="320" y1="315" x2="880" y2="315" stroke="#FF4D00" stroke-width="5"/>
+  <line x1="320" y1="326" x2="880" y2="326" stroke="#FF4D00" stroke-width="1.5"/>
+  
+  <!-- Tagline -->
+  <text x="600" y="385" font-family="'SF Mono', 'Fira Code', 'Courier New', monospace" font-size="22" fill="#8A8A8A" text-anchor="middle" letter-spacing="6">THE AV MARKETPLACE</text>
+  
+  <!-- URL -->
+  <text x="600" y="545" font-family="'SF Mono', 'Fira Code', 'Courier New', monospace" font-size="16" fill="#FF4D00" text-anchor="middle" letter-spacing="3">trusswork.org</text>
+</svg>

@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/onboarding-emails",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/payout-nudges",
+      "schedule": "0 16 * * *"
+    }
+  ]
+}
